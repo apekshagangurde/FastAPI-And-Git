@@ -5,13 +5,22 @@ from typing import Annotated,  List
 
 app = FastAPI()
 
+class Disease(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    name: str
+    patients: List["Patient"] = Relationship(back_populates="diseases", link_model="PatientDiseaseLink")
+
+class PatientDiseaseLink(SQLModel, table=True):
+    patient_id: int = Field(foreign_key="patient.id" ,primary_key=True)
+    disease_id: int = Field(foreign_key="disease.id", primary_key=True)
+
 class PatientBase(SQLModel):
     name: str = "Mr patient"
     age: int 
     disease: str |  None = None
     
 class PatientPublic(PatientBase):
-     id : int
+    pass
      
 class PatientCreate(PatientBase):
     pass
@@ -33,11 +42,13 @@ class Patient(PatientBase, table=True):
     id: int | None = Field(default=None, primary_key=True)
     doctor_id: int | None = Field(default=None, foreign_key="doctor.id")
     doctor:"Doctor" = Relationship(back_populates="patients")
+    diseases: List["Disease"] = Relationship(back_populates="patients", link_model=PatientDiseaseLink)
+    
 
  
     
 class DoctorPublic(DoctorBase):
-     id : int 
+    pass 
      
   
   
@@ -62,7 +73,7 @@ SessionDep = Annotated[Session, Depends(get_session)]
 
 @app.post("/patients/", response_model=PatientPublic)
 def create_patient(patient: PatientCreate, session: SessionDep):
-    patient_obj = Patient(**patient.dict())
+    patient_obj = Patient(**patient.model_dump())
     session.add(patient_obj)
     session.commit()
     session.refresh(patient_obj)
@@ -70,10 +81,10 @@ def create_patient(patient: PatientCreate, session: SessionDep):
 
 @app.post("/doctor/", response_model=DoctorPublic)
 def create_doctor(doctor: DoctorCreate, session: SessionDep):
-    
-    session.add(doctor)
+    doctor_obj = Doctor(**doctor.model_dump())
+    session.add(doctor_obj )
     session.commit()
-    session.refresh(doctor)
+    session.refresh(doctor_obj)
     return doctor
 
 
